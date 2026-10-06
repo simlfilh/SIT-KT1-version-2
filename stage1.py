@@ -18,12 +18,26 @@ YEARS = {
     "2023 (4 курс)": "2023",
 }
 
-SERVICE_COLS = {"Группа", "№", "ФИО", "stud_id", "Сумма", "Семестр"}
+# Колонки, которые НЕ являются баллами — их не трогаем.
+# ВАЖНО: "Сумма" тут НЕТ — её нужно приводить к числу.
+STRING_COLS = {"Группа", "№", "ФИО", "stud_id", "Семестр"}
 
 
 # ------------------------------------------------------------
 # Утилиты
 # ------------------------------------------------------------
+def _finalize_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Приводит все колонки-баллы к числу, строковые оставляет строками."""
+    if df.empty:
+        return df
+    for c in df.columns:
+        if c in STRING_COLS:
+            df[c] = df[c].astype(str)
+        else:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+
+
 def try_fetch(params_list):
     for params in params_list:
         try:
@@ -77,10 +91,7 @@ def load_group_html(up_id, year, g_id, s_id):
 
 
 def load_direction_data(up_id, year, groups, sems, selected_sems, direction_label):
-    """
-    Скачивает данные всех групп направления за выбранные семестры.
-    Возвращает (df, subject_meta).
-    """
+    """Скачивает данные всех групп направления за выбранные семестры."""
     sem_options = {o.label: o for o in sems}
     all_rows = []
     subject_meta = None
@@ -110,10 +121,7 @@ def load_direction_data(up_id, year, groups, sems, selected_sems, direction_labe
     df = pd.DataFrame(all_rows)
     if df.empty or subject_meta is None:
         return df, subject_meta or []
-    for c in df.columns:
-        if c not in SERVICE_COLS:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-    return df, subject_meta
+    return _finalize_df(df), subject_meta
 
 
 # ------------------------------------------------------------
@@ -175,11 +183,11 @@ with col3:
 
 
 # ------------------------------------------------------------
-# 3. Общий семестр (один, для честного сравнения)
+# 3. Общий семестр
 # ------------------------------------------------------------
 common_sems = sorted(set(o.label for o in sems1) & set(o.label for o in sems2))
 if not common_sems:
-    st.warning("У направлений нет общих семестров. Возьмите другой семестр/годы.")
+    st.warning("У направлений нет общих семестров.")
     st.stop()
 
 sem_label = st.selectbox("Семестр для сравнения", common_sems, key="d_sem")
@@ -234,7 +242,6 @@ with col_b:
     box.update_layout(height=420)
     st.plotly_chart(box, use_container_width=True)
 
-# Средний по предметам
 subj_means_1 = df1[subject_shorts_1].mean().round(2).reset_index()
 subj_means_1.columns = ["Предмет", "Средний балл"]
 fig = px.bar(
@@ -245,7 +252,6 @@ fig = px.bar(
 fig.update_layout(height=460)
 st.plotly_chart(fig, use_container_width=True)
 
-# Сводка
 avg_total_1 = round(df1["Сумма"].mean(), 2)
 median_total_1 = round(df1["Сумма"].median(), 2)
 st.caption(
@@ -259,7 +265,6 @@ st.caption(
 # ------------------------------------------------------------
 st.header("2. Сравнение направлений 1 и 2")
 
-# Boxplot по направлениям
 df_all = pd.concat([df1, df2], ignore_index=True)
 df_all["Направление"] = [dir1_label] * len(df1) + [dir2_label] * len(df2)
 
@@ -271,7 +276,6 @@ box = px.box(
 box.update_layout(height=460, showlegend=False)
 st.plotly_chart(box, use_container_width=True)
 
-# Сравнение по общим предметам
 if common_subjects:
     means_1 = df1[common_subjects].mean().round(2).to_dict()
     means_2 = df2[common_subjects].mean().round(2).to_dict()
@@ -332,3 +336,4 @@ with st.expander("🔍 Отладка"):
     st.write("Группы 1:", [g.label for g in groups1])
     st.write("Группы 2:", [g.label for g in groups2])
     st.write("Общие предметы:", common_subjects)
+    st.write("dtypes df1:", df1.dtypes.to_dict())
