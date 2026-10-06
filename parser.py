@@ -1,6 +1,8 @@
 """Парсер БРС СПбГЭУ (rating.unecon.ru)."""
+
 import re
 import requests
+import pandas as pd
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 from dataclasses import dataclass, field
@@ -15,6 +17,10 @@ HEADERS = {
     "Referer": "https://rating.unecon.ru/",
 }
 
+# Колонки, которые НЕ являются баллами. Их не нужно приводить к числу.
+# ВАЖНО: "Сумма" сюда НЕ входит — она должна быть числовой.
+STRING_COLS = {"Группа", "№", "ФИО", "stud_id", "Семестр"}
+
 
 @dataclass
 class Option:
@@ -23,15 +29,16 @@ class Option:
     params: dict = field(default_factory=dict)
 
 
+# ------------------------------------------------------------
+# Парсинг href и фильтров
+# ------------------------------------------------------------
 def _parse_href(href: str) -> dict:
     """Из href вида 'index.php?&y=2023&k=1&...' вытащить параметры."""
     if not href:
         return {}
-    # убираем префикс index.php?
     if "?" in href:
         href = href.split("?", 1)[1]
     q = parse_qs(href, keep_blank_values=True)
-    # parse_qs возвращает списки, берём первые значения и приводим к str
     return {k: v[0] for k, v in q.items()}
 
 
@@ -68,6 +75,9 @@ def get_selected_text(html: str, filter_name: str) -> str:
     return sel.get_text(strip=True) if sel else ""
 
 
+# ------------------------------------------------------------
+# Загрузка страницы
+# ------------------------------------------------------------
 def fetch(params: dict) -> str:
     """Загрузить страницу и вернуть HTML."""
     r = requests.get(BASE, params=params, headers=HEADERS, timeout=30)
@@ -76,6 +86,9 @@ def fetch(params: dict) -> str:
     return r.text
 
 
+# ------------------------------------------------------------
+# Парсинг предметов
+# ------------------------------------------------------------
 def parse_subjects(html: str):
     """
     Вернуть список предметов:
@@ -112,10 +125,16 @@ def parse_subjects(html: str):
     return subjects
 
 
+# ------------------------------------------------------------
+# Парсинг студентов
+# ------------------------------------------------------------
 def parse_students(html: str, group_name: str | None = None):
     """
     Вернуть список словарей со студентами.
     Если group_name передан — добавит колонку 'Группа'.
+
+    ВАЖНО: значения баллов возвращаются строками (как в HTML).
+    Для приведения к числам используйте to_numeric_df().
     """
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table")
@@ -139,7 +158,15 @@ def parse_students(html: str, group_name: str | None = None):
             q = parse_qs(urlparse(fio_tag["href"]).query)
             stud_id = q.get("stud", [None])[0]
 
-        marks = [td.get_text(strip=True) for td in tds[2:-1]]
+        # tds[2] может быть "№ группы" — пропускаем его,
+        # если оно похоже на название группы.
+        start = 2
+        if start < len(tds):
+            candidate = tds[start].get_text(strip=True)
+            if re.match(r"^[А-ЯA-Z]{2,}-\d+", candidate):
+                start = 3
+
+        marks = [td.get_text(strip=True) for td in tds[start:-1]]
         total = tds[-1].get_text(strip=True)
 
         row = {
@@ -165,3 +192,24 @@ def parse_group_names(html: str) -> list[str]:
             continue
         names.append(o.label)
     return names
+
+
+# ------------------------------------------------------------
+# Приведение DataFrame к числовым типам
+# ------------------------------------------------------------
+def to_numeric_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Приводит все колонки-баллы к числовому типу.
+    Служебные колонки (STRING_COLS) остаются строками.
+
+    Это устраняет ошибку:
+        TypeError: Cannot perform reduction 'mean' with string dtype
+    """
+    if df is None or df.empty:
+        return df
+    for c in df.columns:
+        if c in STRING_COLS:
+            df[c] = df[c].astype(str)
+        else:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
