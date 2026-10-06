@@ -19,12 +19,25 @@ YEARS = {
     "2023 (4 курс)": "2023",
 }
 
-SERVICE_COLS = {"Группа", "№", "ФИО", "stud_id", "Сумма", "Семестр"}
+# Колонки, которые НЕ являются баллами — их не трогаем.
+STRING_COLS = {"Группа", "№", "ФИО", "stud_id", "Семестр"}
 
 
 # ------------------------------------------------------------
 # Утилиты
 # ------------------------------------------------------------
+def _finalize_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Приводит все колонки-баллы к числу, строковые оставляет строками."""
+    if df.empty:
+        return df
+    for c in df.columns:
+        if c in STRING_COLS:
+            df[c] = df[c].astype(str)
+        else:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+
+
 def try_fetch(params_list):
     for params in params_list:
         try:
@@ -77,11 +90,20 @@ def load_group_html(up_id, year, g_id, s_id):
     })
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def load_one_group(up_id, year, g_id, s_id, group_name):
+    html = load_group_html(up_id, year, g_id, s_id)
+    meta = p.parse_subjects(html)
+    rows = p.parse_students(html, group_name=group_name)
+    df = pd.DataFrame(rows)
+    return _finalize_df(df), meta
+
+
 def load_direction_data(up_id, year, groups, sems, sem_label, direction_label,
                         progress_prefix=""):
     sem_options = {o.label: o for o in sems}
-    s_id = sem_options.get(sem_label)
-    s_id = s_id.params.get("s") if s_id else None
+    s_opt = sem_options.get(sem_label)
+    s_id = s_opt.params.get("s") if s_opt else None
 
     all_rows = []
     subject_meta = None
@@ -106,14 +128,11 @@ def load_direction_data(up_id, year, groups, sems, sem_label, direction_label,
     df = pd.DataFrame(all_rows)
     if df.empty or subject_meta is None:
         return df, subject_meta or []
-    for c in df.columns:
-        if c not in SERVICE_COLS:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-    return df, subject_meta
+    return _finalize_df(df), subject_meta
 
 
 # ------------------------------------------------------------
-# 1. Выбор целевого студента (направление 1 + группа + ФИО)
+# 1. Целевой студент (направление 1)
 # ------------------------------------------------------------
 st.markdown("### 🎯 Направление 1 — целевое")
 
@@ -147,20 +166,6 @@ sem_label_1 = st.selectbox("Семестр (направление 1)", sem_labe
                             index=len(sem_labels_1) - 1, key="s2_sem1")
 sem1_opt = next(o for o in sems1 if o.label == sem_label_1)
 
-
-# Загружаем целевую группу, чтобы показать список студентов
-@st.cache_data(ttl=600, show_spinner=False)
-def load_one_group(up_id, year, g_id, s_id, group_name):
-    html = load_group_html(up_id, year, g_id, s_id)
-    meta = p.parse_subjects(html)
-    rows = p.parse_students(html, group_name=group_name)
-    df = pd.DataFrame(rows)
-    for c in df.columns:
-        if c not in SERVICE_COLS:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-    return df, meta
-
-
 with st.spinner("Загружаем целевую группу…"):
     df_target_group, _ = load_one_group(
         up1, y1, group1_opt.params.get("g"), sem1_opt.params.get("s"), group1_label
@@ -176,7 +181,7 @@ row_target = df_target_group[df_target_group["ФИО"] == target_name].iloc[0]
 
 
 # ------------------------------------------------------------
-# 2. Выбор направления 2 (для сравнения)
+# 2. Направление 2
 # ------------------------------------------------------------
 st.markdown("### 🔄 Направление 2 — для сравнения")
 
@@ -207,7 +212,7 @@ with col3:
 
 
 # ------------------------------------------------------------
-# 3. Загружаем все группы направлений 1 и 2
+# 3. Загружаем направления
 # ------------------------------------------------------------
 with st.spinner("Загружаем направление 1…"):
     df1, meta1 = load_direction_data(
@@ -227,10 +232,11 @@ if df2.empty:
 
 subject_shorts_1 = [s["short"] for s in meta1]
 subject_shorts_2 = [s["short"] for s in meta2]
+common_subjects = [s for s in subject_shorts_1 if s in subject_shorts_2]
 
 
 # ------------------------------------------------------------
-# 4. Сводные метрики
+# 4. Сводка
 # ------------------------------------------------------------
 st.subheader("Сводка")
 
@@ -250,7 +256,7 @@ c4.metric("Студентов", f"Н1: {len(df1)} / Н2: {len(df2)}")
 
 
 # ------------------------------------------------------------
-# 5. ГРАФИК 3: Студент vs средняя по направлению 1
+# 5. ГРАФИК 3: Студент vs направление 1
 # ------------------------------------------------------------
 st.header("3. Целевой студент vs средняя по направлению 1")
 
@@ -272,7 +278,6 @@ fig3 = px.bar(
 fig3.update_layout(height=500)
 st.plotly_chart(fig3, use_container_width=True)
 
-# Radar
 fig_radar_3 = go.Figure()
 fig_radar_3.add_trace(go.Scatterpolar(
     r=[float(target_by_subj[s]) if pd.notna(target_by_subj[s]) else 0
@@ -294,17 +299,14 @@ st.plotly_chart(fig_radar_3, use_container_width=True)
 
 
 # ------------------------------------------------------------
-# 6. ГРАФИК 4: Студент vs средняя по направлению 2
+# 6. ГРАФИК 4: Студент vs направление 2
 # ------------------------------------------------------------
 st.header("4. Целевой студент vs средняя по направлению 2")
-
-# Сопоставляем предметы между направлениями по короткому имени
-common_subjects = [s for s in subject_shorts_1 if s in subject_shorts_2]
 
 if not common_subjects:
     st.info(
         "У направлений нет общих предметов (по коротким именам). "
-        "Сравнение по предметам недоступно — используйте общий балл."
+        "Сравнение по предметам недоступно."
     )
 else:
     means_2 = df2[common_subjects].mean().round(2).to_dict()
@@ -325,7 +327,6 @@ else:
     fig4.update_layout(height=500)
     st.plotly_chart(fig4, use_container_width=True)
 
-    # Radar
     fig_radar_4 = go.Figure()
     fig_radar_4.add_trace(go.Scatterpolar(
         r=[float(target_common[s]) if pd.notna(target_common[s]) else 0
@@ -357,3 +358,5 @@ with st.expander("🔍 Отладка"):
     st.write("Предметы направления 1:", subject_shorts_1)
     st.write("Предметы направления 2:", subject_shorts_2)
     st.write("Общие предметы:", common_subjects)
+    st.write("dtypes df1:", df1.dtypes.to_dict())
+    st.write("dtypes df2:", df2.dtypes.to_dict())
