@@ -32,7 +32,7 @@ def parse_href(href: str) -> dict:
     if not href:
         return {}
     if "?" in href:
-        href = href.split("?", 1)[1]
+    href = href.split("?", 1)[1]
     q = parse_qs(href, keep_blank_values=True)
     return {k: v[0] for k, v in q.items()}
 
@@ -96,19 +96,6 @@ def parse_subjects(html: str):
         full = (th.get("title") or "").strip()
         subjects.append({"short": short, "full": full})
 
-    # подтянем полные названия из ul.upp_descr, если title пустой
-    upp_desc = {}
-    for li in soup.select("ul.upp_descr li"):
-        text = li.get_text(" ", strip=True)
-        if " - " in text:
-            left, right = text.split(" - ", 1)
-            short = left.split(".", 1)[-1].strip()
-            upp_desc[short] = right.strip()
-
-    for s in subjects:
-        if not s["full"]:
-            s["full"] = upp_desc.get(s["short"], "")
-
     return subjects
 
 
@@ -142,11 +129,11 @@ def parse_students(html: str, group_name: str | None = None):
 
         # tds[2] может быть "№ группы" — пропускаем его,
         # если оно похоже на название группы.
-        start = 2
-        if start < len(tds):
-            candidate = tds[start].get_text(strip=True)
-            if re.match(r"^[А-ЯA-Z]{2,}-\d+", candidate):
-                start = 3
+#        start = 2
+#        if start < len(tds):
+#            candidate = tds[start].get_text(strip=True)
+#            if re.match(r"^[А-ЯA-Z]{2,}-\d+", candidate):
+#                start = 3
 
         marks = [td.get_text(strip=True) for td in tds[start:-1]]
         total = tds[-1].get_text(strip=True)
