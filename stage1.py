@@ -8,9 +8,6 @@ import parser as p
 st.title("📊 Средняя успеваемость направлений")
 
 
-# ============================================================
-# ГОДЫ
-# ============================================================
 YEARS = {
     "2026 (1 курс)": "2026",
     "2025 (2 курс)": "2025",
@@ -23,10 +20,8 @@ YEARS = {
 STRING_COLS = {"Группа", "№", "ФИО", "stud_id", "Семестр"}
 
 
-# ------------------------------------------------------------
 # Утилиты
-# ------------------------------------------------------------
-def _finalize_df(df: pd.DataFrame) -> pd.DataFrame:
+def finalize_df(df: pd.DataFrame) -> pd.DataFrame:
     """Приводит все колонки-баллы к числу, строковые оставляет строками."""
     if df.empty:
         return df
@@ -121,7 +116,7 @@ def load_direction_data(up_id, year, groups, sems, selected_sems, direction_labe
     df = pd.DataFrame(all_rows)
     if df.empty or subject_meta is None:
         return df, subject_meta or []
-    return _finalize_df(df), subject_meta
+    return finalize_df(df), subject_meta
 
 
 # ------------------------------------------------------------
