@@ -1,5 +1,3 @@
-"""Парсер БРС СПбГЭУ (rating.unecon.ru)."""
-
 import re
 import requests
 import pandas as pd
@@ -17,23 +15,20 @@ HEADERS = {
     "Referer": "https://rating.unecon.ru/",
 }
 
-# Колонки, которые НЕ являются баллами. Их не нужно приводить к числу.
-# ВАЖНО: "Сумма" сюда НЕ входит — она должна быть числовой.
+
+# Колонки, которые НЕ являются баллами
 STRING_COLS = {"Группа", "№", "ФИО", "stud_id", "Семестр"}
 
 
 @dataclass
 class Option:
-    """Пункт выпадающего фильтра."""
+    # Пункт выпадающего фильтра
     label: str
     params: dict = field(default_factory=dict)
 
 
-# ------------------------------------------------------------
 # Парсинг href и фильтров
-# ------------------------------------------------------------
-def _parse_href(href: str) -> dict:
-    """Из href вида 'index.php?&y=2023&k=1&...' вытащить параметры."""
+def parse_href(href: str) -> dict:
     if not href:
         return {}
     if "?" in href:
@@ -42,8 +37,8 @@ def _parse_href(href: str) -> dict:
     return {k: v[0] for k, v in q.items()}
 
 
-def _find_filter(soup: BeautifulSoup, filter_name: str):
-    """Найти <li> фильтра по названию ('Курс', 'Группа', ...)."""
+def find_filter(soup: BeautifulSoup, filter_name: str):
+    # Найти <li> фильтра по названию ('Курс', 'Группа', ...)
     for li in soup.select("div.filter > ul > li"):
         b = li.find("b")
         if b and filter_name.lower() in b.get_text(strip=True).lower():
@@ -52,48 +47,40 @@ def _find_filter(soup: BeautifulSoup, filter_name: str):
 
 
 def get_filter_options(html: str, filter_name: str) -> list[Option]:
-    """Вернуть список опций для конкретного фильтра."""
+    # Вернуть список опций для конкретного фильтра
     soup = BeautifulSoup(html, "html.parser")
-    li = _find_filter(soup, filter_name)
+    li = find_filter(soup, filter_name)
     if not li:
         return []
     options = []
     for a in li.select("a.option"):
         label = a.get_text(strip=True)
-        params = _parse_href(a.get("href", ""))
+        params = parse_href(a.get("href", ""))
         options.append(Option(label=label, params=params))
     return options
 
 
 def get_selected_text(html: str, filter_name: str) -> str:
-    """Текущее выбранное значение фильтра (для инициализации UI)."""
+    # Текущее выбранное значение фильтра (для инициализации UI)
     soup = BeautifulSoup(html, "html.parser")
-    li = _find_filter(soup, filter_name)
+    li = find_filter(soup, filter_name)
     if not li:
         return ""
     sel = li.select_one(".selected_text")
     return sel.get_text(strip=True) if sel else ""
 
 
-# ------------------------------------------------------------
-# Загрузка страницы
-# ------------------------------------------------------------
+# Загрузить страницу и вернуть HTML
 def fetch(params: dict) -> str:
-    """Загрузить страницу и вернуть HTML."""
     r = requests.get(BASE, params=params, headers=HEADERS, timeout=30)
     r.raise_for_status()
     r.encoding = "utf-8"
     return r.text
 
 
-# ------------------------------------------------------------
 # Парсинг предметов
-# ------------------------------------------------------------
+# Вернуть список предметов: [{'short': 'ИМ', 'full': 'Имитационное моделирование (дифф.зач.)'}, ...]
 def parse_subjects(html: str):
-    """
-    Вернуть список предметов:
-      [{'short': 'ИМ', 'full': 'Имитационное моделирование (дифф.зач.)'}, ...]
-    """
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table")
     if not table or not table.find("thead"):
@@ -125,17 +112,12 @@ def parse_subjects(html: str):
     return subjects
 
 
-# ------------------------------------------------------------
 # Парсинг студентов
-# ------------------------------------------------------------
+# Вернуть список словарей со студентами.
+# Если group_name передан — добавит колонку 'Группа'.
+# ВАЖНО: значения баллов возвращаются строками (как в HTML).
+# Для приведения к числам используйте to_numeric_df().
 def parse_students(html: str, group_name: str | None = None):
-    """
-    Вернуть список словарей со студентами.
-    Если group_name передан — добавит колонку 'Группа'.
-
-    ВАЖНО: значения баллов возвращаются строками (как в HTML).
-    Для приведения к числам используйте to_numeric_df().
-    """
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table")
     if not table or not table.find("tbody"):
@@ -183,8 +165,8 @@ def parse_students(html: str, group_name: str | None = None):
     return students
 
 
+# Список названий групп из фильтра 'Группа' (кроме 'Не выбрано'/'Все группы')
 def parse_group_names(html: str) -> list[str]:
-    """Список названий групп из фильтра 'Группа' (кроме 'Не выбрано'/'Все группы')."""
     opts = get_filter_options(html, "Группа")
     names = []
     for o in opts:
@@ -194,17 +176,11 @@ def parse_group_names(html: str) -> list[str]:
     return names
 
 
-# ------------------------------------------------------------
 # Приведение DataFrame к числовым типам
-# ------------------------------------------------------------
+# Приводит все колонки-баллы к числовому типу.
+# Служебные колонки (STRING_COLS) остаются строками.
+# Это устраняет ошибку: TypeError: Cannot perform reduction 'mean' with string dtype
 def to_numeric_df(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Приводит все колонки-баллы к числовому типу.
-    Служебные колонки (STRING_COLS) остаются строками.
-
-    Это устраняет ошибку:
-        TypeError: Cannot perform reduction 'mean' with string dtype
-    """
     if df is None or df.empty:
         return df
     for c in df.columns:
