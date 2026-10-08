@@ -26,16 +26,16 @@ STRING_COLS = {"Группа", "№", "ФИО", "stud_id", "Семестр"}
 # ------------------------------------------------------------
 # Утилиты
 # ------------------------------------------------------------
-def _finalize_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Приводит все колонки-баллы к числу, строковые оставляет строками."""
-    if df.empty:
-        return df
-    for c in df.columns:
-        if c in STRING_COLS:
-            df[c] = df[c].astype(str)
-        else:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-    return df
+# def _finalize_df(df: pd.DataFrame) -> pd.DataFrame:
+#     """Приводит все колонки-баллы к числу, строковые оставляет строками."""
+#     if df.empty:
+#         return df
+#     for c in df.columns:
+#         if c in STRING_COLS:
+#             df[c] = df[c].astype(str)
+#         else:
+#             df[c] = pd.to_numeric(df[c], errors="coerce")
+#     return df
 
 
 def try_fetch(params_list):
@@ -128,7 +128,7 @@ def load_direction_data(up_id, year, groups, sems, sem_label, direction_label,
     df = pd.DataFrame(all_rows)
     if df.empty or subject_meta is None:
         return df, subject_meta or []
-    return _finalize_df(df), subject_meta
+    return p.to_numeric_df(df), subject_meta
 
 
 # ------------------------------------------------------------
