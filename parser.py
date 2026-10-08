@@ -129,11 +129,11 @@ def parse_students(html: str, group_name: str | None = None):
 
         # tds[2] может быть "№ группы" — пропускаем его,
         # если оно похоже на название группы.
-#        start = 2
-#        if start < len(tds):
-#            candidate = tds[start].get_text(strip=True)
-#            if re.match(r"^[А-ЯA-Z]{2,}-\d+", candidate):
-#                start = 3
+        start = 2
+        if start < len(tds):
+            candidate = tds[start].get_text(strip=True)
+            if re.match(r"^[А-ЯA-Z]{2,}-\d+", candidate):
+                start = 3
 
         marks = [td.get_text(strip=True) for td in tds[start:-1]]
         total = tds[-1].get_text(strip=True)
