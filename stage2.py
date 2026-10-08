@@ -96,7 +96,7 @@ def load_one_group(up_id, year, g_id, s_id, group_name):
     meta = p.parse_subjects(html)
     rows = p.parse_students(html, group_name=group_name)
     df = pd.DataFrame(rows)
-    return _finalize_df(df), meta
+    return p.to_numeric_df(df), meta
 
 
 def load_direction_data(up_id, year, groups, sems, sem_label, direction_label,
