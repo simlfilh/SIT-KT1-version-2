@@ -32,7 +32,7 @@ def parse_href(href: str) -> dict:
     if not href:
         return {}
     if "?" in href:
-    href = href.split("?", 1)[1]
+        href = href.split("?", 1)[1]   
     q = parse_qs(href, keep_blank_values=True)
     return {k: v[0] for k, v in q.items()}
 
