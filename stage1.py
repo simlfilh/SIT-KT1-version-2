@@ -21,18 +21,6 @@ STRING_COLS = {"Группа", "№", "ФИО", "stud_id", "Семестр"}
 
 
 # Утилиты
-# def finalize_df(df: pd.DataFrame) -> pd.DataFrame:
-#     """Приводит все колонки-баллы к числу, строковые оставляет строками."""
-#     if df.empty:
-#         return df
-#     for c in df.columns:
-#         if c in STRING_COLS:
-#             df[c] = df[c].astype(str)
-#         else:
-#             df[c] = pd.to_numeric(df[c], errors="coerce")
-#     return df
-
-
 def try_fetch(params_list):
     for params in params_list:
         try:
