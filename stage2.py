@@ -223,10 +223,8 @@ avg2 = round(df2["Сумма"].mean(), 2)
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Суммарный балл студента", f"{target_total:.2f}")
-c2.metric("Средний по направлению 1", f"{avg1:.2f}",
-          delta=f"{target_total - avg1:+.2f}")
-c3.metric("Средний по направлению 2", f"{avg2:.2f}",
-          delta=f"{target_total - avg2:+.2f}")
+c2.metric("Средний по направлению 1", f"{avg1:.2f}")
+c3.metric("Средний по направлению 2", f"{avg2:.2f}")
 c4.metric("Студентов", f"Н1: {len(df1)} / Н2: {len(df2)}")
 
 
