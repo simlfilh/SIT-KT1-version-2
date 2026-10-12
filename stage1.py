@@ -294,11 +294,6 @@ st.dataframe(summary, use_container_width=True, hide_index=True)
 
 
 # 8. Отладка
-with st.expander("🔍 Отладка"):
+with st.expander("Отладка"):
     st.write("Направление 1:", dir1_label, "| up:", up1, "| y:", y1)
     st.write("Направление 2:", dir2_label, "| up:", up2, "| y:", y2)
-    st.write("Семестр:", sem_label)
-    st.write("Группы 1:", [g.label for g in groups1])
-    st.write("Группы 2:", [g.label for g in groups2])
-    st.write("Общие предметы:", common_subjects)
-    st.write("dtypes df1:", df1.dtypes.to_dict())
