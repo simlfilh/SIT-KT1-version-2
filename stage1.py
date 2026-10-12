@@ -239,7 +239,7 @@ df_all["Направление"] = [dir1_label] * len(df1) + [dir2_label] * len(
 
 box = px.box(
     df_all, x="Направление", y="Сумма",
-    points="all", color_discrete_sequence="Направление",
+    points="all", color="Направление",
     title="Распределение суммарного балла: направления 1 vs 2",
 )
 box.update_layout(height=460, showlegend=False)
@@ -258,7 +258,7 @@ if common_subjects:
     fig = px.bar(
         cmp.melt(id_vars="Предмет", var_name="Направление",
                  value_name="Средний балл"),
-        x="Предмет", y="Средний балл", color_discrete_sequence="Направление",
+        x="Предмет", y="Средний балл", color="Направление",
         barmode="group",
         title="Средний балл по общим предметам",
     )
