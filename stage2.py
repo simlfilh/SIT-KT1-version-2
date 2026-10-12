@@ -213,8 +213,6 @@ common_subjects = [s for s in subject_shorts_1 if s in subject_shorts_2]
 
 
 # 4. Сводка
-st.subheader("Сводка")
-
 target_total = row_target.get("Сумма", pd.NA)
 target_total = float(target_total) if pd.notna(target_total) else 0
 
