@@ -319,13 +319,7 @@ else:
 
 
 # 7. Отладка
-with st.expander("🔍 Отладка"):
-    st.write("Целевой студент:", target_name)
+with st.expander("Отладка"):
     st.write("Направление 1:", dir1_label, "| up:", up1, "| y:", y1)
     st.write("Направление 2:", dir2_label, "| up:", up2, "| y:", y2)
-    st.write("Семестр 1:", sem_label_1, "| Семестр 2:", sem_label_2)
-    st.write("Предметы направления 1:", subject_shorts_1)
-    st.write("Предметы направления 2:", subject_shorts_2)
-    st.write("Общие предметы:", common_subjects)
-    st.write("dtypes df1:", df1.dtypes.to_dict())
-    st.write("dtypes df2:", df2.dtypes.to_dict())
+
