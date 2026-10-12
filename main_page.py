@@ -1,7 +1,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Аналитика БРС СПбГЭУ",
+    page_title="Дашборд БРС СПбГЭУ",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
