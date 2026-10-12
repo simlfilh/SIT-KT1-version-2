@@ -199,7 +199,7 @@ with col_a:
     fig = px.histogram(
         df1, x="Сумма", nbins=20,
         title=f"Распределение суммарного балла — {dir1_label}",
-        color_discrete_sequence=["#2E86DE"],
+        color=["#2E86DE"],
     )
     fig.update_layout(height=420)
     st.plotly_chart(fig, use_container_width=True)
@@ -208,7 +208,7 @@ with col_b:
     box = px.box(
         df1, y="Сумма", points="all",
         title=f"Boxplot суммарного балла — {dir1_label}",
-        color_discrete_sequence=["#2E86DE"],
+        color=["#2E86DE"],
     )
     box.update_layout(height=420)
     st.plotly_chart(box, use_container_width=True)
@@ -218,7 +218,7 @@ subj_means_1.columns = ["Предмет", "Средний балл"]
 fig = px.bar(
     subj_means_1, x="Предмет", y="Средний балл",
     title=f"Средний балл по предметам — {dir1_label}",
-    color_discrete_sequence=["#2E86DE"],
+    color=["#2E86DE"],
 )
 fig.update_layout(height=460)
 st.plotly_chart(fig, use_container_width=True)
